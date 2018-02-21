@@ -175,7 +175,7 @@ func (tln *TwoLayerNet) Accuracy(x, t *mat.Dense) float64 {
 	batchSize, _ := x.Dims()
 
 	y := tln.Predict(x)
-	sum := 1.0
+	sum := 0.0
 
 	for i := 0; i < batchSize; i++ {
 		if t.At(i, argmaxOnVec(y.RowView(i))) == 1.0 {
@@ -201,11 +201,21 @@ func main() {
 	is := 784
 	hs := 50
 	os := 10
-	bs := 100
+	bs := 1
 
 	net := InitNet(is, hs, os, 0)
 
 	input := mat.NewDense(bs, is, makeRandSliceFloat64(bs*is))
+	t := mat.NewDense(bs, os, nil)
+	rand.Seed(time.Now().UnixNano())
+	for i := 0; i < bs; i++ {
+		truearg := rand.Intn(10)
+		t.Set(i, truearg, 1.0)
+	}
 
+	fmt.Println(mat.Formatted(t))
 	fmt.Println(mat.Formatted(net.Predict(input)))
+
+	fmt.Println(net.Loss(input, t))
+	fmt.Println(net.Accuracy(input, t))
 }
