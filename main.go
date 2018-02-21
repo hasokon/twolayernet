@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"math"
 	"math/rand"
 	"time"
@@ -141,13 +142,25 @@ func (tln *TwoLayerNet) Predict(input *mat.Dense) *mat.Dense {
 	// Input -> Hidden
 	a1 := mat.NewDense(batchSize, tln.hiddenSize, nil)
 	a1.Mul(input, tln.weight[0])
-	a1.Add(a1, tln.bias[0])
+	for i := 0; i < batchSize; i++ {
+		tmprow := a1.RawRowView(i)
+		for j, x := range tmprow {
+			tmprow[j] = x + tln.bias[0].At(0, j)
+		}
+		a1.SetRow(i, tmprow)
+	}
 	z1 := sigmoid(a1)
 
 	// Hidden -> Output
 	a2 := mat.NewDense(batchSize, tln.outputSize, nil)
 	a2.Mul(z1, tln.weight[1])
-	a2.Add(a2, tln.bias[1])
+	for i := 0; i < batchSize; i++ {
+		tmprow := a2.RawRowView(i)
+		for j, x := range tmprow {
+			tmprow[j] = x + tln.bias[1].At(0, j)
+		}
+		a2.SetRow(i, tmprow)
+	}
 	output := softmax(a2)
 
 	return output
@@ -173,9 +186,26 @@ func (tln *TwoLayerNet) Accuracy(x, t *mat.Dense) float64 {
 	return sum / float64(batchSize)
 }
 
-func (tln *TwoLayerNet) NumericalGradient(x, t *mat.Dense) *mat.Dense {
+// func (tln *TwoLayerNet) NumericalGradient(x, t *mat.Dense) *mat.Dense {
+// 	f := func(w *mat.Dense) float64 {
+// 		return tln.Loss(x, t)
+// 	}
 
-}
+// 	grads := TwoLayerNet{
+// 		weight: make([]*mat.Dense, 2),
+// 		bias:   make([]*mat.Dense, 2),
+// 	}
+// }
 
 func main() {
+	is := 784
+	hs := 50
+	os := 10
+	bs := 100
+
+	net := InitNet(is, hs, os, 0)
+
+	input := mat.NewDense(bs, is, makeRandSliceFloat64(bs*is))
+
+	fmt.Println(mat.Formatted(net.Predict(input)))
 }
