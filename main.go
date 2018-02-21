@@ -78,7 +78,7 @@ func makeRandSliceFloat64(size int) []float64 {
 	slc := make([]float64, size)
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < size; i++ {
-		slc[i] = rand.Float64()
+		slc[i] = rand.Float64() * 0.01
 	}
 	return slc
 }
@@ -92,9 +92,9 @@ func numericalGradient(f func(*mat.Dense) float64, x *mat.Dense) *mat.Dense {
 	for i := 0; i < r; i++ {
 		for j := 0; j < c; j++ {
 			tmpval := x.At(i, j)
-			x.Set(i, j, tmpval+h)
-			fx0 := f(x)
 			x.Set(i, j, tmpval-h)
+			fx0 := f(x)
+			x.Set(i, j, tmpval+h)
 			fx1 := f(x)
 
 			grad.Set(i, j, (fx0-fx1)/(2*h))
@@ -105,21 +105,29 @@ func numericalGradient(f func(*mat.Dense) float64, x *mat.Dense) *mat.Dense {
 	return grad
 }
 
-type TwoLayerNet struct {
-	weight     []*mat.Dense
-	bias       []*mat.Dense
-	inputSize  int
-	hiddenSize int
-	outputSize int
+type Params struct {
+	Weight     []*mat.Dense
+	Bias       []*mat.Dense
+	InputSize  int
+	HiddenSize int
+	OutputSize int
 }
 
-func InitNet(inputsize, hiddensize, outputsize int, weightInitStd float64) *TwoLayerNet {
-	tln := TwoLayerNet{
-		weight:     make([]*mat.Dense, 2),
-		bias:       make([]*mat.Dense, 2),
-		inputSize:  inputsize,
-		hiddenSize: hiddensize,
-		outputSize: outputsize,
+type TwoLayerNet interface {
+	Predict(input *mat.Dense) *mat.Dense
+	Loss(x, t *mat.Dense) float64
+	Accuracy(x, t *mat.Dense) float64
+	NumericalGradient(x, t *mat.Dense) *Params
+	ParamUpdate(p *Params, lerningRate float64)
+}
+
+func InitNet(inputsize, hiddensize, outputsize int, weightInitStd float64) TwoLayerNet {
+	p := Params{
+		Weight:     make([]*mat.Dense, 2),
+		Bias:       make([]*mat.Dense, 2),
+		InputSize:  inputsize,
+		HiddenSize: hiddensize,
+		OutputSize: outputsize,
 	}
 
 	w1 := makeRandSliceFloat64(inputsize * hiddensize)
@@ -127,37 +135,37 @@ func InitNet(inputsize, hiddensize, outputsize int, weightInitStd float64) *TwoL
 	b1 := makeRandSliceFloat64(hiddensize)
 	b2 := makeRandSliceFloat64(outputsize)
 
-	tln.weight[0] = mat.NewDense(inputsize, hiddensize, w1)
-	tln.weight[1] = mat.NewDense(hiddensize, outputsize, w2)
-	tln.bias[0] = mat.NewDense(1, hiddensize, b1)
-	tln.bias[1] = mat.NewDense(1, outputsize, b2)
+	p.Weight[0] = mat.NewDense(inputsize, hiddensize, w1)
+	p.Weight[1] = mat.NewDense(hiddensize, outputsize, w2)
+	p.Bias[0] = mat.NewDense(1, hiddensize, b1)
+	p.Bias[1] = mat.NewDense(1, outputsize, b2)
 
-	return &tln
+	return &p
 }
 
-func (tln *TwoLayerNet) Predict(input *mat.Dense) *mat.Dense {
+func (p *Params) Predict(input *mat.Dense) *mat.Dense {
 
 	batchSize, _ := input.Dims()
 
 	// Input -> Hidden
-	a1 := mat.NewDense(batchSize, tln.hiddenSize, nil)
-	a1.Mul(input, tln.weight[0])
+	a1 := mat.NewDense(batchSize, p.HiddenSize, nil)
+	a1.Mul(input, p.Weight[0])
 	for i := 0; i < batchSize; i++ {
 		tmprow := a1.RawRowView(i)
 		for j, x := range tmprow {
-			tmprow[j] = x + tln.bias[0].At(0, j)
+			tmprow[j] = x + p.Bias[0].At(0, j)
 		}
 		a1.SetRow(i, tmprow)
 	}
 	z1 := sigmoid(a1)
 
 	// Hidden -> Output
-	a2 := mat.NewDense(batchSize, tln.outputSize, nil)
-	a2.Mul(z1, tln.weight[1])
+	a2 := mat.NewDense(batchSize, p.OutputSize, nil)
+	a2.Mul(z1, p.Weight[1])
 	for i := 0; i < batchSize; i++ {
 		tmprow := a2.RawRowView(i)
 		for j, x := range tmprow {
-			tmprow[j] = x + tln.bias[1].At(0, j)
+			tmprow[j] = x + p.Bias[1].At(0, j)
 		}
 		a2.SetRow(i, tmprow)
 	}
@@ -166,15 +174,15 @@ func (tln *TwoLayerNet) Predict(input *mat.Dense) *mat.Dense {
 	return output
 }
 
-func (tln *TwoLayerNet) Loss(x, t *mat.Dense) float64 {
-	y := tln.Predict(x)
+func (p *Params) Loss(x, t *mat.Dense) float64 {
+	y := p.Predict(x)
 	return crossEntropyError(y, t)
 }
 
-func (tln *TwoLayerNet) Accuracy(x, t *mat.Dense) float64 {
+func (p *Params) Accuracy(x, t *mat.Dense) float64 {
 	batchSize, _ := x.Dims()
 
-	y := tln.Predict(x)
+	y := p.Predict(x)
 	sum := 0.0
 
 	for i := 0; i < batchSize; i++ {
@@ -186,36 +194,70 @@ func (tln *TwoLayerNet) Accuracy(x, t *mat.Dense) float64 {
 	return sum / float64(batchSize)
 }
 
-// func (tln *TwoLayerNet) NumericalGradient(x, t *mat.Dense) *mat.Dense {
-// 	f := func(w *mat.Dense) float64 {
-// 		return tln.Loss(x, t)
-// 	}
+func (p *Params) NumericalGradient(x, t *mat.Dense) *Params {
+	f := func(w *mat.Dense) float64 {
+		return p.Loss(x, t)
+	}
 
-// 	grads := TwoLayerNet{
-// 		weight: make([]*mat.Dense, 2),
-// 		bias:   make([]*mat.Dense, 2),
-// 	}
-// }
+	grads := Params{
+		Weight: make([]*mat.Dense, 2),
+		Bias:   make([]*mat.Dense, 2),
+	}
+
+	grads.Weight[0] = numericalGradient(f, p.Weight[0])
+	grads.Weight[1] = numericalGradient(f, p.Weight[1])
+	grads.Bias[0] = numericalGradient(f, p.Bias[0])
+	grads.Bias[1] = numericalGradient(f, p.Bias[1])
+
+	return &grads
+}
+
+func (p *Params) ParamUpdate(param *Params, lerningRate float64) {
+	for d := 0; d < 2; d++ {
+		r, c := param.Weight[d].Dims()
+		for i := 0; i < r; i++ {
+			for j := 0; j < c; j++ {
+				param.Weight[d].Set(i, j, param.Weight[d].At(i, j)*lerningRate)
+			}
+		}
+		r, c = param.Bias[d].Dims()
+		for i := 0; i < r; i++ {
+			for j := 0; j < c; j++ {
+				param.Bias[d].Set(i, j, param.Bias[d].At(i, j)*lerningRate)
+			}
+		}
+	}
+
+	p.Weight[0].Add(p.Weight[0], param.Weight[0])
+	p.Weight[1].Add(p.Weight[1], param.Weight[1])
+	p.Bias[0].Add(p.Bias[0], param.Bias[0])
+	p.Bias[1].Add(p.Bias[1], param.Bias[1])
+}
 
 func main() {
-	is := 784
-	hs := 50
-	os := 10
-	bs := 1
+	is := 4
+	hs := 10
+	os := 2
+	bs := 100
 
 	net := InitNet(is, hs, os, 0)
 
+	rand.Seed(time.Now().UnixNano())
 	input := mat.NewDense(bs, is, makeRandSliceFloat64(bs*is))
 	t := mat.NewDense(bs, os, nil)
-	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < bs; i++ {
-		truearg := rand.Intn(10)
+		truearg := rand.Intn(os)
 		t.Set(i, truearg, 1.0)
 	}
 
-	fmt.Println(mat.Formatted(t))
-	fmt.Println(mat.Formatted(net.Predict(input)))
-
+	fmt.Printf("first:")
 	fmt.Println(net.Loss(input, t))
-	fmt.Println(net.Accuracy(input, t))
+
+	for i := 0; i < 10000; i++ {
+		grads := net.NumericalGradient(input, t)
+		net.ParamUpdate(grads, 0.1)
+		fmt.Printf("%d:", i+1)
+		fmt.Println(net.Loss(input, t))
+	}
+	fmt.Println(net.Loss(input, t))
 }
