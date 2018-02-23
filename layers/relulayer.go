@@ -12,14 +12,6 @@ func InitReLuLayer() *ReLuLayer {
 	return &ReLuLayer{}
 }
 
-func (r *ReLuLayer) GetDB() *mat.Dense {
-	return nil
-}
-
-func (r *ReLuLayer) GetDW() *mat.Dense {
-	return nil
-}
-
 func (r *ReLuLayer) Forward(x *mat.Dense) *mat.Dense {
 	rows, cols := x.Dims()
 	out := mat.NewDense(rows, cols, nil)

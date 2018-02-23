@@ -64,14 +64,16 @@ func numericalGradient(f func(*mat.Dense) float64, x *mat.Dense) *mat.Dense {
 }
 
 type Params struct {
-	Weight       []*mat.Dense
-	Bias         []*mat.Dense
-	Layers       []layers.Layer
-	LastLayer    *layers.SoftmaxWithLossLayer
-	InputSize    int
-	HiddenSize   int
-	OutputSize   int
-	LearningRate float64
+	Weight           []*mat.Dense
+	Bias             []*mat.Dense
+	Layers           []layers.Layer
+	ActivationLayers []layers.ActivationLayer
+	LastLayer        layers.OutputLayer
+	InputSize        int
+	HiddenSize       int
+	OutputSize       int
+	LearningRate     float64
+	Depth            int
 }
 
 type TwoLayerNet interface {
@@ -84,6 +86,9 @@ type TwoLayerNet interface {
 }
 
 func InitNet(inputsize, hiddensize, outputsize int, weightInitStd, learningRate float64) TwoLayerNet {
+
+	depth := 2
+
 	p := Params{
 		Weight:       make([]*mat.Dense, 2),
 		Bias:         make([]*mat.Dense, 2),
@@ -91,6 +96,7 @@ func InitNet(inputsize, hiddensize, outputsize int, weightInitStd, learningRate 
 		HiddenSize:   hiddensize,
 		OutputSize:   outputsize,
 		LearningRate: learningRate,
+		Depth:        depth,
 	}
 
 	w1 := makeRandSliceFloat64(inputsize*hiddensize, weightInitStd)
@@ -103,20 +109,24 @@ func InitNet(inputsize, hiddensize, outputsize int, weightInitStd, learningRate 
 	p.Bias[0] = mat.NewDense(1, hiddensize, b1)
 	p.Bias[1] = mat.NewDense(1, outputsize, b2)
 
-	p.Layers = make([]layers.Layer, 3)
+	p.Layers = make([]layers.Layer, p.Depth)
 	p.Layers[0] = layers.InitAffineLayer(p.Weight[0], p.Bias[0])
-	p.Layers[1] = layers.InitSigmoidLayer()
-	p.Layers[2] = layers.InitAffineLayer(p.Weight[1], p.Bias[1])
+	p.Layers[1] = layers.InitAffineLayer(p.Weight[1], p.Bias[1])
+
+	p.ActivationLayers = make([]layers.ActivationLayer, p.Depth)
+	p.ActivationLayers[0] = layers.InitSigmoidLayer()
+	p.ActivationLayers[1] = layers.InitIdentityLayer()
 
 	p.LastLayer = layers.InitSoftmaxWithLossLayer()
 
 	return &p
 }
 
-func (p *Params) Predict(input *mat.Dense) *mat.Dense {
-	x := p.Layers[0].Forward(input)
-	x = p.Layers[1].Forward(x)
-	x = p.Layers[2].Forward(x)
+func (p *Params) Predict(x *mat.Dense) *mat.Dense {
+	for i := 0; i < p.Depth; i++ {
+		x = p.Layers[i].Forward(x)
+		x = p.ActivationLayers[i].Forward(x)
+	}
 
 	return x
 }
@@ -163,13 +173,22 @@ func (p *Params) Gradient(x, t *mat.Dense) *Params {
 	p.Loss(x, t)
 
 	dout := p.LastLayer.Backward(1.0)
-	dout = p.Layers[2].Backward(dout)
-	dout = p.Layers[1].Backward(dout)
-	dout = p.Layers[0].Backward(dout)
+
+	for i := p.Depth - 1; i >= 0; i-- {
+		dout = p.ActivationLayers[i].Backward(dout)
+		dout = p.Layers[i].Backward(dout)
+	}
+
+	weight := make([]*mat.Dense, p.Depth)
+	bias := make([]*mat.Dense, p.Depth)
+	for i := 0; i < p.Depth; i++ {
+		weight[i] = p.Layers[i].GetDW()
+		bias[i] = p.Layers[i].GetDB()
+	}
 
 	grads := Params{
-		Weight: []*mat.Dense{p.Layers[0].GetDW(), p.Layers[2].GetDW()},
-		Bias:   []*mat.Dense{p.Layers[0].GetDB(), p.Layers[2].GetDB()},
+		Weight: weight,
+		Bias:   bias,
 	}
 
 	return &grads
