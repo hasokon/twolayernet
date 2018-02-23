@@ -17,23 +17,20 @@ func (m *MulLayer) Forward(x, y *mat.Dense) *mat.Dense {
 	m.x = mat.DenseCopyOf(x)
 	m.y = mat.DenseCopyOf(y)
 
-	r, _ := x.Dims()
-	_, c := y.Dims()
+	r, c := x.Dims()
 
 	out := mat.NewDense(r, c, nil)
-	out.Mul(x, y)
+	out.MulElem(x, y)
 	return out
 }
 
 func (m *MulLayer) Backward(dout *mat.Dense) (dx, dy *mat.Dense) {
-	r, _ := dout.Dims()
-	_, cdx := m.y.Dims()
-	_, cdy := m.y.Dims()
+	r, c := dout.Dims()
 
-	dx = mat.NewDense(r, cdx, nil)
-	dx.Mul(dout, m.y)
-	dy = mat.NewDense(r, cdy, nil)
-	dy.Mul(dout, m.x)
+	dx = mat.NewDense(r, c, nil)
+	dx.MulElem(dout, m.y)
+	dy = mat.NewDense(r, c, nil)
+	dy.MulElem(dout, m.x)
 
 	return
 }

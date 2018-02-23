@@ -14,6 +14,14 @@ func InitSigmoidLayer() *SigmoidLayer {
 	return &SigmoidLayer{}
 }
 
+func (s *SigmoidLayer) GetDB() *mat.Dense {
+	return nil
+}
+
+func (s *SigmoidLayer) GetDW() *mat.Dense {
+	return nil
+}
+
 func (s *SigmoidLayer) Forward(x *mat.Dense) *mat.Dense {
 	r, c := x.Dims()
 	out := mat.NewDense(r, c, nil)
