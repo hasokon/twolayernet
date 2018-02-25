@@ -28,6 +28,9 @@ func makeRandSliceFloat64(size int, param float64) []float64 {
 	rand.Seed(time.Now().UnixNano())
 	for i := 0; i < size; i++ {
 		slc[i] = rand.NormFloat64() * param
+		if rand.Intn(2) == 0 {
+			slc[i] = slc[i] * -1.0
+		}
 	}
 	return slc
 }
@@ -102,7 +105,8 @@ func InitTwoLayerNet(inputsize, hiddensize, outputsize int, weightInitStd float6
 	t.affineLayers[1] = layers.InitAffineLayer(t.params.Weight[1], t.params.Bias[1])
 
 	t.activationLayers = make([]layers.ActivationLayer, t.depth)
-	t.activationLayers[0] = layers.InitSigmoidLayer()
+	// t.activationLayers[0] = layers.InitSigmoidLayer()
+	t.activationLayers[0] = layers.InitReLuLayer()
 	t.activationLayers[1] = layers.InitIdentityLayer()
 
 	t.lastLayer = layers.InitSoftmaxWithLossLayer()
@@ -185,4 +189,8 @@ func (tl *TwoLayerNet) Gradient(x, t *mat.Dense) *Params {
 
 func (tl *TwoLayerNet) GetParams() *Params {
 	return tl.params
+}
+
+func (tl *TwoLayerNet) GetDepth() int {
+	return tl.depth
 }

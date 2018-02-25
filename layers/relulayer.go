@@ -23,6 +23,9 @@ func (r *ReLuLayer) Forward(x *mat.Dense) *mat.Dense {
 			if v > 0 {
 				r.mask[i][j] = true
 				out.Set(i, j, v)
+			} else {
+				r.mask[i][j] = false
+				out.Set(i, j, 0)
 			}
 		}
 	}

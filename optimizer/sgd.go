@@ -1,4 +1,6 @@
-package neuralnetwork
+package optimizer
+
+import "github.com/hasokon/twolayernet/neuralnetwork"
 
 type SGD struct {
 	learningRate float64
@@ -10,7 +12,7 @@ func InitSGD(learningrate float64) Optimizer {
 	}
 }
 
-func (s *SGD) Update(params, grads *Params) {
+func (s *SGD) Update(params, grads *neuralnetwork.Params) {
 	for d := 0; d < 2; d++ {
 		r, c := grads.Weight[d].Dims()
 		for i := 0; i < r; i++ {

@@ -9,4 +9,5 @@ type NeuralNetwork interface {
 	NumericalGradient(x, t *mat.Dense) *Params
 	Gradient(x, t *mat.Dense) *Params
 	GetParams() *Params
+	GetDepth() int
 }

@@ -9,6 +9,7 @@ import (
 
 	"github.com/hasokon/mnist"
 	"github.com/hasokon/twolayernet/neuralnetwork"
+	"github.com/hasokon/twolayernet/optimizer"
 )
 
 func GetBatchData(d, l *mat.Dense, bs int) (bd, bl *mat.Dense) {
@@ -53,16 +54,15 @@ func main() {
 	tel := mat.NewDense(mnist.TestDataSize, os, testlabels)
 
 	net := neuralnetwork.InitTwoLayerNet(is, hs, os, 0.01)
-	optimizer := neuralnetwork.InitSGD(0.01)
+	opt := optimizer.InitOptimizer(net.GetDepth(), 0.01, optimizer.AlgorismAdaGrad) //Sig=0.1, ReLu=0.001
 
 	for i := 0; i < loop; i++ {
 		batchData, batchLabel := GetBatchData(tri, trl, bs)
-		grads := net.Gradient(batchData, batchLabel)
-		optimizer.Update(net.GetParams(), grads)
-
-		if i%1000 == 0 {
+		if i%200 == 0 {
 			testData, testLabel := GetBatchData(tei, tel, bs)
 			fmt.Printf("%6d: Loss=%f, Accuracy=%3.1f%%\n", i, net.Loss(batchData, batchLabel), net.Accuracy(testData, testLabel)*100)
 		}
+		grads := net.Gradient(batchData, batchLabel)
+		opt.Update(net.GetParams(), grads)
 	}
 }

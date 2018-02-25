@@ -9,3 +9,11 @@ type Params struct {
 	Bias   []*mat.Dense
 	Depth  int
 }
+
+func InitParams(depth int) *Params {
+	return &Params{
+		Weight: make([]*mat.Dense, depth),
+		Bias:   make([]*mat.Dense, depth),
+		Depth:  depth,
+	}
+}
