@@ -8,7 +8,7 @@ type ReLuLayer struct {
 	mask [][]bool
 }
 
-func InitReLuLayer() *ReLuLayer {
+func InitReLuLayer() ActivationLayer {
 	return &ReLuLayer{}
 }
 

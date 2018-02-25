@@ -41,8 +41,8 @@ func main() {
 	mnist, _ := mnist.InitMNIST()
 
 	is := mnist.TrainImageWidth * mnist.TrainImageHeight
-	hs := 100
 	os := 10
+	neurons := []int{is, 500, os}
 	bs := 100
 	loop := 10000
 
@@ -53,8 +53,8 @@ func main() {
 	tei := mat.NewDense(mnist.TestDataSize, is, testimages)
 	tel := mat.NewDense(mnist.TestDataSize, os, testlabels)
 
-	net := neuralnetwork.InitTwoLayerNet(is, hs, os, 0.01)
-	opt := optimizer.InitOptimizer(net.GetDepth(), 0.01, optimizer.AlgorismAdaGrad) //Sig=0.1, ReLu=0.001
+	net, _ := neuralnetwork.InitMultiLayerNet(len(neurons)-1, neurons, 0.01, neuralnetwork.ActivationAlgorismReLu)
+	opt := optimizer.InitOptimizer(net.GetDepth(), 0.001, optimizer.AlgorismSGD) //Sig=0.1, ReLu=0.001
 
 	for i := 0; i < loop; i++ {
 		batchData, batchLabel := GetBatchData(tri, trl, bs)

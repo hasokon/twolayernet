@@ -10,7 +10,7 @@ type SigmoidLayer struct {
 	out *mat.Dense
 }
 
-func InitSigmoidLayer() *SigmoidLayer {
+func InitSigmoidLayer() ActivationLayer {
 	return &SigmoidLayer{}
 }
 
