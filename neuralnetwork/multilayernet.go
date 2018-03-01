@@ -23,10 +23,12 @@ type MultiLayerNet struct {
 	depth            int
 }
 
-func InitMultiLayerNet(depth int, neurons []int, weightInitStd float64, a ActivationAlgorism) (NeuralNetwork, error) {
+func InitMultiLayerNet(neurons []int, weightInitStd float64, a ActivationAlgorism) (NeuralNetwork, error) {
 
-	if depth+1 > len(neurons) {
-		return nil, errors.New("Invalid Args: depth+1 > len(neurons)")
+	depth := len(neurons) - 1
+
+	if depth < 1 {
+		return nil, errors.New("Invalid Args: the length of neurons is at least 2")
 	}
 
 	m := MultiLayerNet{
