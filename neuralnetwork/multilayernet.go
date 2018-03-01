@@ -12,18 +12,25 @@ const (
 	ActivationAlgorismReLu
 )
 
+const (
+	NormalizationAlgorismNo = iota
+	NormalizationAlgorismBatchNorm
+)
+
 type ActivationAlgorism int
+type NormalizationAlgorism int
 
 type MultiLayerNet struct {
-	params           *Params
-	affineLayers     []layers.Layer
-	activationLayers []layers.ActivationLayer
-	lastLayer        layers.OutputLayer
-	neurons          []int
-	depth            int
+	params              *Params
+	affineLayers        []layers.Layer
+	activationLayers    []layers.ActivationLayer
+	normalizationLayers []layers.NormalizationLayer
+	lastLayer           layers.OutputLayer
+	neurons             []int
+	depth               int
 }
 
-func InitMultiLayerNet(neurons []int, weightInitStd float64, a ActivationAlgorism) (NeuralNetwork, error) {
+func InitMultiLayerNet(neurons []int, weightInitStd float64, a ActivationAlgorism, n NormalizationAlgorism) (NeuralNetwork, error) {
 
 	depth := len(neurons) - 1
 
@@ -32,15 +39,14 @@ func InitMultiLayerNet(neurons []int, weightInitStd float64, a ActivationAlgoris
 	}
 
 	m := MultiLayerNet{
-		params:  &Params{},
+		params:  InitParams(depth),
 		neurons: neurons,
 		depth:   depth,
 	}
 
-	m.params.Weight = make([]*mat.Dense, m.depth)
-	m.params.Bias = make([]*mat.Dense, m.depth)
 	m.affineLayers = make([]layers.Layer, m.depth)
 	m.activationLayers = make([]layers.ActivationLayer, m.depth)
+	m.normalizationLayers = make([]layers.NormalizationLayer, m.depth)
 
 	initActivationLayer := layers.InitSigmoidLayer
 	switch a {
@@ -52,6 +58,14 @@ func InitMultiLayerNet(neurons []int, weightInitStd float64, a ActivationAlgoris
 		initActivationLayer = layers.InitSigmoidLayer
 	}
 
+	initNormalizationLayer := layers.InitNoNormalizationLayer
+	switch n {
+	case NormalizationAlgorismBatchNorm:
+		initNormalizationLayer = layers.InitBatchNormLayer
+	case NormalizationAlgorismNo:
+		initNormalizationLayer = layers.InitNoNormalizationLayer
+	}
+
 	for d := 0; d < depth; d++ {
 		w := makeRandSliceFloat64(neurons[d]*neurons[d+1], weightInitStd)
 		b := makeRandSliceFloat64(neurons[d+1], weightInitStd)
@@ -61,8 +75,11 @@ func InitMultiLayerNet(neurons []int, weightInitStd float64, a ActivationAlgoris
 
 		m.params.Weight[d] = weight
 		m.params.Bias[d] = bias
+		m.params.Beta[d] = makeSliceFloat64(neurons[d+1], 0.0)
+		m.params.Gamma[d] = makeSliceFloat64(neurons[d+1], 1.0)
 
 		m.affineLayers[d] = layers.InitAffineLayer(weight, bias)
+		m.normalizationLayers[d] = initNormalizationLayer(m.params.Beta[d], m.params.Gamma[d])
 
 		if d < depth-1 {
 			m.activationLayers[d] = initActivationLayer()
@@ -80,6 +97,7 @@ func (m *MultiLayerNet) Predict(x *mat.Dense) *mat.Dense {
 	for i := 0; i < m.depth; i++ {
 		x = m.affineLayers[i].Forward(x)
 		x = m.activationLayers[i].Forward(x)
+		x = m.normalizationLayers[i].Forward(x)
 	}
 
 	return x
@@ -130,6 +148,7 @@ func (m *MultiLayerNet) Gradient(x, t *mat.Dense) *Params {
 	dout := m.lastLayer.Backward(1.0)
 
 	for i := m.depth - 1; i >= 0; i-- {
+		dout = m.normalizationLayers[i].Backward(dout)
 		dout = m.activationLayers[i].Backward(dout)
 		dout = m.affineLayers[i].Backward(dout)
 	}

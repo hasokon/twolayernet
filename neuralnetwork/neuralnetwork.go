@@ -44,6 +44,14 @@ func makeRandSliceFloat64(size int, param float64) []float64 {
 	return slc
 }
 
+func makeSliceFloat64(size int, value float64) []float64 {
+	slc := make([]float64, size)
+	for i := 0; i < size; i++ {
+		slc[i] = value
+	}
+	return slc
+}
+
 func makeRandSliceOneHot(size int) []float64 {
 	slc := make([]float64, size)
 	rand.Seed(uint64(time.Now().UnixNano()))

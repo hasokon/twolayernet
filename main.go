@@ -53,7 +53,15 @@ func main() {
 	tei := mat.NewDense(mnist.TestDataSize, is, testimages)
 	tel := mat.NewDense(mnist.TestDataSize, os, testlabels)
 
-	net, _ := neuralnetwork.InitMultiLayerNet(neurons, 0.01, neuralnetwork.ActivationAlgorismReLu)
+	net, err := neuralnetwork.InitMultiLayerNet(
+		neurons,
+		0.01,
+		neuralnetwork.ActivationAlgorismReLu,
+		neuralnetwork.NormalizationAlgorismNo)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 	opt := optimizer.InitOptimizer(net.GetDepth(), 0.001, optimizer.AlgorismSGD) //Sig=0.1, ReLu=0.001
 
 	for i := 0; i < loop; i++ {
